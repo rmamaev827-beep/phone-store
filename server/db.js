@@ -9,8 +9,9 @@ let impl = null;
 async function connect() {
   // Neon через Vercel отдаёт адрес базы в DATABASE_URL (или POSTGRES_URL)
   const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-  if (!url && process.env.VERCEL) {
-    throw new Error('подключите базу Postgres (Neon) к проекту — нужна переменная DATABASE_URL');
+  // на хостинге диск не сохраняется, поэтому встроенная база там потеряла бы все данные
+  if (!url && (process.env.VERCEL || process.env.RENDER)) {
+    throw new Error('подключите базу PostgreSQL — нужна переменная DATABASE_URL');
   }
   if (url) {
     const { Pool } = require('pg');

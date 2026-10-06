@@ -64,3 +64,11 @@ ALTER TABLE products ALTER COLUMN storage SET DEFAULT 0;
 ALTER TABLE products ALTER COLUMN ram SET DEFAULT 0;
 ALTER TABLE products ALTER COLUMN brand SET DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_products_kind ON products(kind);
+
+-- Загруженные фото, когда сервер работает с облачной базой (на Render и Vercel диск не сохраняется)
+CREATE TABLE IF NOT EXISTS images (
+  id         TEXT PRIMARY KEY,
+  mime       TEXT NOT NULL,
+  data       BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

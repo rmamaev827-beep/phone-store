@@ -7,10 +7,11 @@ const multer = require('multer');
 const db = require('./db');
 const { seedIfEmpty, seedAccessoriesOnce } = require('./seed');
 const auth = require('./auth');
+const storage = require('./storage');
 
 const missing = ['ADMIN_LOGIN', 'ADMIN_PASSWORD', 'JWT_SECRET'].filter((key) => !process.env[key]);
 if (missing.length) {
-  console.error(`Не заданы переменные: ${missing.join(', ')} — локально заполните server/.env, на Vercel — Environment Variables`);
+  console.error(`Не заданы переменные: ${missing.join(', ')} — локально заполните server/.env, на хостинге — Environment Variables`);
   if (require.main === module) process.exit(1);
 }
 
@@ -41,6 +42,12 @@ app.use(async (req, res, next) => {
     res.status(503).json({ error: 'Сервер не настроен: ' + err.message });
   }
 });
+// проверка для хостинга: отвечает 200, только когда база доступна
+app.get('/health', async (req, res) => {
+  await db.query('SELECT 1');
+  res.json({ ok: true });
+});
+app.get('/uploads/:name', storage.serve);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { maxAge: '1h' }));
 
 app.use('/api/auth', auth.router);

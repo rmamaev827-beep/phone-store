@@ -67,20 +67,32 @@ npm run dev           # API на :4000, сайт на http://localhost:3000
 
 `POST /api/orders` теперь принимает `delivery_method` и `payment_method` и возвращает `{ order, payment_url }`.
 
-## Размещение на Vercel
+## Размещение: backend на Render, сайт на Vercel
 
-Из одного репозитория создаются два проекта Vercel: API (`server`) и сайт (`client`).
+### Backend (Render)
 
-1. **API.** Vercel → Add New → Project → этот репозиторий, Root Directory: `server`.
-   - Storage → Create Database → **Neon (Postgres)** и подключить к проекту — появится `DATABASE_URL`.
-   - Storage → Create → **Blob** и подключить к проекту — появится `BLOB_READ_WRITE_TOKEN` (фото из админки).
-   - Settings → Environment Variables: `ADMIN_LOGIN`, `ADMIN_PASSWORD`, при необходимости `ADMIN2_LOGIN`, `ADMIN2_PASSWORD` (второй администратор), `JWT_SECRET` (длинная случайная строка).
-   - Redeploy. Проверка: адрес проекта должен отвечать `{"name":"PhoneShop API","ok":true}`.
-2. **Сайт.** Ещё раз Add New → Project → тот же репозиторий, Root Directory: `client`.
-   - Environment Variables: `API_URL` = адрес проекта API (например `https://phone-shop-api.vercel.app`, без `/` в конце).
-3. Для онлайн-оплаты в проекте API задайте `PUBLIC_URL` = адрес сайта и ключи Freedom Pay.
+В корне лежит `render.yaml` — Blueprint, который создаёт веб-сервис `phone-store-api` (папка `server`) и базу PostgreSQL `phone-store-db`.
 
-Таблицы и стартовые телефоны создаются сами при первом запросе. Локальный запуск (`npm run dev`) работает как раньше: без `DATABASE_URL` — встроенная база, без Blob — папка `server/uploads`.
+1. render.com → **New → Blueprint** → подключить GitHub и выбрать этот репозиторий.
+2. Render попросит одно значение — `ADMIN_PASSWORD` (пароль админки). `JWT_SECRET` он сгенерирует сам, `DATABASE_URL` подставит из созданной базы.
+3. **Apply**. После сборки проверьте `https://<имя-сервиса>.onrender.com/health` — должно быть `{"ok":true}`.
+
+Таблицы, 17 телефонов и 12 аксессуаров создаются сами при первом запуске. Сервер слушает порт из переменной `PORT`, которую задаёт Render.
+
+Ограничения бесплатного тарифа Render:
+- сервис засыпает через 15 минут без запросов, первый запрос после этого идёт около минуты;
+- бесплатная база PostgreSQL удаляется через 30 дней после создания. Чтобы данные жили дольше, создайте бесплатную базу на neon.tech и впишите её адрес в `DATABASE_URL` сервиса (или перейдите на платный тариф базы);
+- файлы на диске не сохраняются, поэтому загруженные фото хранятся в базе (таблица `images`).
+
+Дополнительные переменные (по желанию): `ADMIN2_LOGIN` / `ADMIN2_PASSWORD`, `STORE_ADDRESS`, `PUBLIC_URL` и ключи Freedom Pay.
+
+### Сайт (Vercel)
+
+1. vercel.com → **Add New → Project** → этот репозиторий, **Root Directory: `client`**.
+2. Environment Variables: `API_URL` = адрес сервиса Render без `/` в конце, например `https://phone-store-api.onrender.com`.
+3. Deploy. Сайт сам проксирует `/api` и `/uploads` на backend, поэтому в браузере нет обращений к `localhost`.
+
+Локально `API_URL` не нужен: по умолчанию сайт ходит на `http://localhost:4000`.
 
 ## Контакты
 
