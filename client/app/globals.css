@@ -1,0 +1,218 @@
+@import "tailwindcss";
+
+/* ---------- Design tokens ---------- */
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+@theme {
+  /* один акцентный цвет + нейтральная шкала */
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-accent-soft: #eef3ff;
+  /* акцент для текста и иконок: в тёмной теме он светлее, чем заливка кнопок */
+  --color-accent-fg: #2563eb;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-page: #f4f6fa;
+  --color-surface: #ffffff;
+  --color-line: #e3e5e9;
+  --color-ink: #15181e;
+  --color-muted: #626a77;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05);
+  --shadow-lift: 0 8px 24px rgb(16 24 40 / 0.08);
+  --shadow-pop: 0 16px 48px rgb(16 24 40 / 0.18);
+
+  --animate-fade: fade 0.2s ease-out both;
+  --animate-page: page 0.25s ease-out both;
+  --animate-pop: pop 0.18s ease-out both;
+  --animate-dialog: dialog 0.2s ease-out both;
+  --animate-drawer: drawer 0.25s ease-out both;
+  --animate-toast-in: toast-in 0.22s ease-out both;
+  --animate-toast-out: toast-out 0.18s ease-in both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes page {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes pop {
+    from { opacity: 0.4; transform: scale(0.85); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes dialog {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes drawer {
+    from { transform: translateX(-100%); }
+    to { transform: none; }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes toast-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(8px); }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+}
+
+/* ---------- Тёмная тема ----------
+   Переопределяем токены и нейтральную шкалу — компоненты остаются без изменений. */
+
+:root {
+  color-scheme: light;
+  --glow-1: rgb(37 99 235 / 0.11);
+  --glow-2: rgb(14 165 233 / 0.09);
+  --glow-3: rgb(99 102 241 / 0.06);
+  --dot: rgb(21 24 30 / 0.07);
+  --skeleton-a: #e9ecf0;
+  --skeleton-b: #f5f6f8;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-accent-hover: #3b76f0;
+  --color-accent-soft: #17233f;
+  --color-accent-fg: #82abff;
+  --color-page: #0d1015;
+  --color-surface: #161a21;
+  --color-line: #262b34;
+  --color-ink: #e9ebef;
+  --color-muted: #99a2af;
+
+  --color-zinc-50: #1b1f27;
+  --color-zinc-100: #20252e;
+  --color-zinc-200: #2a303a;
+  --color-zinc-300: #3a414d;
+  --color-zinc-400: #6f7885;
+  --color-zinc-500: #8a93a0;
+  --color-zinc-700: #c6cbd4;
+  --color-zinc-900: #232831;
+
+  --color-red-50: #2e1a1d;
+  --color-red-200: #5a2a2e;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+  --color-emerald-50: #10291f;
+  --color-emerald-600: #34d399;
+  --color-emerald-700: #5fd6a0;
+  --color-amber-50: #2e2410;
+  --color-amber-700: #fbbf24;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 10px 28px rgb(0 0 0 / 0.45);
+  --shadow-pop: 0 18px 50px rgb(0 0 0 / 0.6);
+
+  --glow-1: rgb(37 99 235 / 0.22);
+  --glow-2: rgb(14 165 233 / 0.12);
+  --glow-3: rgb(99 102 241 / 0.12);
+  --dot: rgb(255 255 255 / 0.06);
+  --skeleton-a: #1e232b;
+  --skeleton-b: #2a303a;
+}
+
+/* плавная смена темы — класс вешается только на время переключения */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease !important;
+}
+
+/* ---------- Base ---------- */
+
+html {
+  scroll-behavior: smooth;
+  background: var(--color-page);
+}
+
+body {
+  color: var(--color-ink);
+}
+
+/* Фон: мягкие цветные пятна + едва заметная точечная сетка, уходящая вниз */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+body::before {
+  background:
+    radial-gradient(46rem 26rem at 8% -6%, var(--glow-1), transparent 70%),
+    radial-gradient(40rem 24rem at 96% 2%, var(--glow-2), transparent 70%),
+    radial-gradient(52rem 28rem at 50% 112%, var(--glow-3), transparent 70%);
+}
+body::after {
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 70%);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-fg);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Shared primitives ---------- */
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6;
+  }
+
+  .card {
+    @apply rounded-xl border border-line bg-surface shadow-card;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[13px] font-medium text-ink;
+  }
+
+  /* единый вид input / select / textarea; 16px на мобильных — чтобы iOS не зумил страницу */
+  .control {
+    @apply h-10 w-full rounded-lg border border-line bg-surface px-3 text-base text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-zinc-400 hover:border-zinc-300 focus:border-accent focus:ring-3 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 sm:text-sm;
+  }
+  .control[aria-invalid="true"] {
+    @apply border-red-500 focus:border-red-500 focus:ring-red-500/15;
+  }
+  textarea.control {
+    @apply h-auto min-h-24 py-2.5;
+  }
+  input[type="file"].control {
+    @apply h-auto py-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1 file:text-[13px] file:font-medium file:text-ink;
+  }
+
+  .skeleton {
+    @apply animate-shimmer rounded-md;
+    background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 37%, var(--skeleton-a) 63%);
+    background-size: 200% 100%;
+  }
+}
