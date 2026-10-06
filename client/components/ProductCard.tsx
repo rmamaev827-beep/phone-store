@@ -7,7 +7,7 @@ import { useCart } from "@/lib/cart";
 import { ContactButton } from "./ContactButton";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
-import { CartIcon, CheckIcon, PhoneIcon } from "./ui/Icons";
+import { BoxIcon, CartIcon, CheckIcon, PhoneIcon } from "./ui/Icons";
 import { Skeleton } from "./ui/Skeleton";
 import { toast } from "./ui/Toast";
 
@@ -20,11 +20,14 @@ export function PhoneImage({
   alt,
   className = "",
   imgClassName = "",
+  placeholder = "phone",
 }: {
   src: string;
   alt: string;
   className?: string;
   imgClassName?: string;
+  /** что рисовать, пока фото не загружено админом */
+  placeholder?: "phone" | "box";
 }) {
   const img = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
@@ -50,8 +53,8 @@ export function PhoneImage({
           } ${imgClassName}`}
         />
       ) : (
-        <div role={alt ? "img" : undefined} aria-label={alt || undefined} className="flex size-full items-center justify-center text-zinc-300">
-          <PhoneIcon className="size-1/3" strokeWidth={1} />
+        <div role={alt ? "img" : undefined} aria-label={alt || undefined} className="flex size-full items-center justify-center bg-zinc-100 text-zinc-400">
+          {placeholder === "box" ? <BoxIcon className="size-1/3" strokeWidth={1} /> : <PhoneIcon className="size-1/3" strokeWidth={1} />}
         </div>
       )}
     </div>

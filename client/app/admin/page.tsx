@@ -1,18 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { ContactsForm } from "@/components/ContactsForm";
 import { ProductForm } from "@/components/ProductForm";
 import { ProductTable } from "@/components/ProductTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { AlertIcon, BoxIcon, CheckIcon, LogoutIcon, PhoneIcon, PlusIcon, ReceiptIcon } from "@/components/ui/Icons";
+import { AlertIcon, BoxIcon, CartIcon, CheckIcon, LogoutIcon, PhoneIcon, PlusIcon, ReceiptIcon } from "@/components/ui/Icons";
 import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Loading, Skeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { toast } from "@/components/ui/Toast";
-import { type Order, type Product, ApiError, api, formatPrice, getToken, setToken } from "@/lib/api";
+import {
+  type Analytics,
+  type Order,
+  type Product,
+  type ProductKind,
+  type StatProduct,
+  ApiError,
+  api,
+  formatPrice,
+  getToken,
+  setToken,
+} from "@/lib/api";
 
 const STATUSES: Record<string, { label: string; tone: "accent" | "warning" | "success" | "neutral" }> = {
   new: { label: "Новый", tone: "accent" },
@@ -309,14 +321,34 @@ function OrderRow({
 
 /* ---------- Панель ---------- */
 
+type Tab = "analytics" | "phones" | "accessories" | "orders" | "contacts";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "analytics", label: "Аналитика" },
+  { id: "phones", label: "Телефоны" },
+  { id: "accessories", label: "Аксессуары" },
+  { id: "orders", label: "Заказы" },
+  { id: "contacts", label: "Контакты" },
+];
+// как часто подтягивать новые заказы и остатки, пока админка открыта
+const REFRESH_MS = 20_000;
+
+function MiniStat({ label, value, tone = "" }: { label: string; value: number; tone?: string }) {
+  return (
+    <div className="card px-3 py-2.5">
+      <p className="text-xs text-muted">{label}</p>
+      <p className={`text-lg font-semibold tabular-nums ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
 function Dashboard({ onLogout }: { onLogout: () => void }) {
-  const [tab, setTab] = useState<"products" | "orders" | "contacts">("products");
-  const [products, setProducts] = useState<Product[] | null>(null);
+  const [tab, setTab] = useState<Tab>("analytics");
+  const [stats, setStats] = useState<Analytics | null>(null);
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState<number[]>([]);
-  const [editing, setEditing] = useState<Product | "new" | null>(null);
-  const [deleting, setDeleting] = useState<Product | null>(null);
+  const [editing, setEditing] = useState<{ kind: ProductKind; product: Product | null } | null>(null);
+  const [deleting, setDeleting] = useState<StatProduct | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
   const onError = useCallback(
@@ -327,26 +359,46 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     [onLogout],
   );
 
-  const load = useCallback(() => {
-    setLoadError("");
-    Promise.all([api<Product[]>("/products?sort=new"), api<Order[]>("/orders")])
-      .then(([p, o]) => {
-        setProducts(p);
-        setOrders(o);
-      })
-      .catch((e) => {
-        if (e instanceof ApiError && e.status === 401) return onLogout();
-        setLoadError((e as Error).message);
-      });
-  }, [onLogout]);
-  useEffect(load, [load]);
+  // silent — фоновое обновление: без скелетона и без экрана ошибки
+  const load = useCallback(
+    (silent = false) => {
+      if (!silent) setLoadError("");
+      return Promise.all([api<Analytics>("/analytics"), api<Order[]>("/orders")])
+        .then(([a, o]) => {
+          setStats(a);
+          setOrders(o);
+          setLoadError("");
+        })
+        .catch((e) => {
+          if (e instanceof ApiError && e.status === 401) return onLogout();
+          if (!silent) setLoadError((e as Error).message);
+        });
+    },
+    [onLogout],
+  );
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  async function changeStock(p: Product, stock: number) {
+  // новые заказы покупателей появляются сами: по таймеру и при возврате на вкладку
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === "visible") load(true);
+    };
+    const timer = setInterval(tick, REFRESH_MS);
+    window.addEventListener("focus", tick);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", tick);
+    };
+  }, [load]);
+
+  async function changeStock(p: StatProduct, stock: number) {
     if (stock < 0 || busy.includes(p.id)) return;
     setBusy((b) => [...b, p.id]);
     try {
       const updated = await api<Product>(`/products/${p.id}`, { method: "PATCH", json: { stock } });
-      setProducts((list) => list && list.map((x) => (x.id === p.id ? { ...x, stock: updated.stock } : x)));
+      setStats((st) => st && { ...st, products: st.products.map((x) => (x.id === p.id ? { ...x, stock: updated.stock } : x)) });
     } catch (e) {
       onError(e);
     } finally {
@@ -359,8 +411,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setDeleteBusy(true);
     try {
       await api(`/products/${deleting.id}`, { method: "DELETE" });
-      setProducts((list) => list && list.filter((x) => x.id !== deleting.id));
-      toast.success("Телефон удалён");
+      setStats((st) => st && { ...st, products: st.products.filter((x) => x.id !== deleting.id) });
+      toast.success(deleting.kind === "accessory" ? "Аксессуар удалён" : "Телефон удалён");
       setDeleting(null);
     } catch (e) {
       onError(e);
@@ -374,20 +426,24 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       await api(`/orders/${id}`, { method: "PATCH", json: { status } });
       setOrders((list) => list && list.map((o) => (o.id === id ? { ...o, status } : o)));
       toast.success("Статус заказа обновлён");
+      // отмена заказа меняет количество проданного
+      load(true);
     } catch (e) {
       onError(e);
     }
   }
 
-  function onSaved(saved: Product) {
-    setProducts((list) => {
-      if (!list) return list;
-      return list.some((x) => x.id === saved.id) ? list.map((x) => (x.id === saved.id ? { ...x, ...saved } : x)) : [saved, ...list];
-    });
+  function onSaved() {
     setEditing(null);
+    load(true);
   }
 
+  const products = stats?.products ?? null;
+  const phones = products?.filter((p) => p.kind !== "accessory") ?? [];
+  const accessories = products?.filter((p) => p.kind === "accessory") ?? [];
   const inStock = products ? products.filter((p) => p.stock > 0).length : null;
+  const soldUnits = products ? products.reduce((n, p) => n + p.sold, 0) : null;
+  const addKind: ProductKind | null = tab === "phones" ? "phone" : tab === "accessories" ? "accessory" : null;
 
   return (
     <>
@@ -399,7 +455,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         </Button>
       </div>
 
-      <section aria-label="Статистика" className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section aria-label="Статистика" className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <StatCard icon={<PhoneIcon />} label="Всего товаров" value={products ? products.length : null} tone="bg-accent-soft text-accent-fg" />
         <StatCard icon={<CheckIcon />} label="В наличии" value={inStock} tone="bg-emerald-50 text-emerald-600" />
         <StatCard
@@ -408,29 +464,33 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           value={products && inStock !== null ? products.length - inStock : null}
           tone="bg-red-50 text-red-600"
         />
-        <StatCard icon={<ReceiptIcon />} label="Всего заказов" value={orders ? orders.length : null} />
+        <StatCard icon={<ReceiptIcon />} label="Всего заказов" value={stats ? stats.orders_total : null} />
+        <StatCard icon={<CartIcon />} label="Продано товаров" value={soldUnits} tone="bg-amber-50 text-amber-700" />
       </section>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Разделы" className="inline-flex rounded-lg bg-zinc-200/70 p-1">
-          {(["products", "orders", "contacts"] as const).map((t) => (
-            <button
-              key={t}
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={`h-8 cursor-pointer rounded-md px-4 text-sm font-medium transition-colors duration-150 ${
-                tab === t ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"
-              }`}
-            >
-              {t === "products" ? "Телефоны" : t === "orders" ? "Заказы" : "Контакты"}
-            </button>
-          ))}
+        {/* на телефоне вкладки листаются по горизонтали */}
+        <div className="-mx-4 max-w-[100vw] overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+          <div role="tablist" aria-label="Разделы" className="inline-flex rounded-lg bg-zinc-200/70 p-1">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={tab === t.id}
+                onClick={() => setTab(t.id)}
+                className={`h-8 shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 text-sm font-medium transition-colors duration-150 ${
+                  tab === t.id ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
-        {tab === "products" && (
-          <Button onClick={() => setEditing("new")} className="w-full sm:w-auto">
+        {addKind && (
+          <Button onClick={() => setEditing({ kind: addKind, product: null })} className="w-full sm:w-auto">
             <PlusIcon className="size-4" />
-            Добавить телефон
+            {addKind === "phone" ? "Добавить телефон" : "Добавить аксессуар"}
           </Button>
         )}
       </div>
@@ -443,7 +503,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             title="Не удалось загрузить данные"
             text={loadError}
             action={
-              <Button variant="outline" onClick={load}>
+              <Button variant="outline" onClick={() => load()}>
                 Повторить
               </Button>
             }
@@ -454,26 +514,61 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           <ContactsForm onError={onError} />
         ) : tab === "orders" ? (
           <OrdersList orders={orders} onStatus={changeStatus} onError={onError} />
-        ) : products.length === 0 ? (
+        ) : tab === "analytics" ? (
+          <AnalyticsPanel products={products} />
+        ) : tab === "accessories" ? (
+          <>
+            <section aria-label="Статистика по аксессуарам" className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <MiniStat label="Всего аксессуаров" value={accessories.length} />
+              <MiniStat label="В наличии" value={accessories.filter((p) => p.stock > 0).length} tone="text-emerald-700" />
+              <MiniStat label="Нет в наличии" value={accessories.filter((p) => p.stock <= 0).length} tone="text-red-600" />
+              <MiniStat label="Продано" value={accessories.reduce((n, p) => n + p.sold, 0)} />
+            </section>
+            {accessories.length === 0 ? (
+              <EmptyState
+                icon={<BoxIcon />}
+                title="Аксессуаров пока нет"
+                text="Добавьте первый аксессуар, чтобы он появился в разделе «Аксессуары»."
+                action={<Button onClick={() => setEditing({ kind: "accessory", product: null })}>Добавить аксессуар</Button>}
+              />
+            ) : (
+              <ProductTable
+                variant="accessory"
+                products={accessories}
+                busy={busy}
+                onStock={changeStock}
+                onEdit={(p) => setEditing({ kind: "accessory", product: p })}
+                onDelete={setDeleting}
+              />
+            )}
+          </>
+        ) : phones.length === 0 ? (
           <EmptyState
             icon={<PhoneIcon />}
             title="Телефонов пока нет"
             text="Добавьте первый телефон, чтобы он появился в каталоге."
-            action={<Button onClick={() => setEditing("new")}>Добавить телефон</Button>}
+            action={<Button onClick={() => setEditing({ kind: "phone", product: null })}>Добавить телефон</Button>}
           />
         ) : (
-          <ProductTable products={products} busy={busy} onStock={changeStock} onEdit={setEditing} onDelete={setDeleting} />
+          <ProductTable
+            variant="phone"
+            products={phones}
+            busy={busy}
+            onStock={changeStock}
+            onEdit={(p) => setEditing({ kind: "phone", product: p })}
+            onDelete={setDeleting}
+          />
         )}
       </div>
 
       {editing && (
-        <ProductForm product={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSaved={onSaved} />
+        <ProductForm kind={editing.kind} product={editing.product} onClose={() => setEditing(null)} onSaved={onSaved} />
       )}
 
       <Modal
         open={deleting !== null}
         onClose={() => !deleteBusy && setDeleting(null)}
-        title="Удалить телефон?"
+        title={deleting?.kind === "accessory" ? "Удалить аксессуар?" : "Удалить телефон?"}
         size="sm"
         footer={
           <>
@@ -518,8 +613,8 @@ export default function AdminPage() {
     return (
       <Loading>
         <Skeleton className="mb-6 h-8 w-48" />
-        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }, (_, i) => (
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: 5 }, (_, i) => (
             <Skeleton key={i} className="h-18 rounded-xl" />
           ))}
         </div>

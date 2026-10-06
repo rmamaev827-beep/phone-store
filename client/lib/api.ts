@@ -1,5 +1,10 @@
+export type ProductKind = "phone" | "accessory";
+
 export type Product = {
   id: number;
+  /** телефон или аксессуар; у аксессуара вместо характеристик — категория */
+  kind: ProductKind;
+  category: string;
   name: string;
   brand: string;
   price: number;
@@ -15,6 +20,10 @@ export type Product = {
   created_at: string;
   sold?: number;
 };
+
+/** Товар с продажами — для аналитики в админке */
+export type StatProduct = Product & { sold: number; orders_count: number; revenue: number };
+export type Analytics = { products: StatProduct[]; orders_total: number };
 
 export type OrderItem = {
   id: number;
@@ -102,5 +111,14 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
 
 export const formatPrice = (value: number) => `${value.toLocaleString("ru-RU")} сом`;
 export const formatStorage = (gb: number) => (gb >= 1024 ? `${gb / 1024} TB` : `${gb} GB`);
+/** Раздел товара в аналитике: у телефона это бренд, у аксессуара — его категория */
+export const productCategory = (p: Pick<Product, "kind" | "brand" | "category">) =>
+  p.kind === "accessory" ? p.category || "Другое" : p.brand || "Без бренда";
+export const productSection = (p: Pick<Product, "kind">) => (p.kind === "accessory" ? "Аксессуары" : "Телефоны");
+
+/** Короткая строка под названием: «256 GB · 8 GB RAM» у телефона, категория у аксессуара */
+export const productSpecs = (p: Pick<Product, "storage" | "ram"> & { kind?: ProductKind; category?: string }) =>
+  p.kind === "accessory" ? p.category || "Аксессуар" : `${formatStorage(p.storage)} · ${p.ram} GB RAM`;
+
 export const phoneTitle = (p: Pick<Product, "brand" | "name">) =>
   p.name.toLowerCase().includes(p.brand.toLowerCase()) || p.brand === "Apple" ? p.name : `${p.brand} ${p.name}`;

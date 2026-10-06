@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { ActiveFilters, FilterPanel, SORTS, useFilters } from "@/components/FilterPanel";
 import ProductCard, { PRODUCT_GRID, ProductCardSkeleton } from "@/components/ProductCard";
-import { Button, buttonClass } from "@/components/ui/Button";
+import { Button, ButtonLink, buttonClass } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AlertIcon, FilterIcon, SearchIcon } from "@/components/ui/Icons";
 import { Select } from "@/components/ui/Input";
@@ -157,6 +157,18 @@ function Catalog() {
             )}
           </div>
         </div>
+      </section>
+
+      <section aria-labelledby="accessories-promo" className="card mt-8 flex flex-col gap-4 px-5 py-6 sm:mt-10 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <div>
+          <h2 id="accessories-promo" className="text-lg font-semibold tracking-tight">
+            Аксессуары для телефона
+          </h2>
+          <p className="mt-1 text-sm text-muted">Чехлы, защитные стёкла, зарядные устройства, кабели и наушники.</p>
+        </div>
+        <ButtonLink href="/accessories" variant="outline" className="w-full sm:w-auto">
+          Перейти в аксессуары
+        </ButtonLink>
       </section>
 
       <Modal

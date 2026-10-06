@@ -34,12 +34,12 @@ const GROUPS = [
   { key: "storage", title: "Память", options: STORAGE, chip: (o: Option) => o.label },
   { key: "ram", title: "RAM", options: RAM, chip: (o: Option) => `${o.label} RAM` },
 ];
-const FILTER_KEYS = ["brand", "storage", "ram", "minPrice", "maxPrice", "q"];
+const FILTER_KEYS = ["brand", "storage", "ram", "category", "inStock", "minPrice", "maxPrice", "q"];
 
 const money = (v: string) => Number(v).toLocaleString("ru-RU");
 
 /** Состояние фильтров живёт в адресной строке и уходит в API как есть */
-export function useFilters() {
+export function useFilters(basePath = "/") {
   const router = useRouter();
   const searchParams = useSearchParams();
   const qs = searchParams.toString();
@@ -56,7 +56,7 @@ export function useFilters() {
     mutate(params);
     const next = params.toString();
     pending.current = next;
-    router.replace(next ? `/?${next}` : "/", { scroll: false });
+    router.replace(next ? `${basePath}?${next}` : basePath, { scroll: false });
   }
 
   const get = (key: string) => searchParams.get(key) || "";
@@ -91,7 +91,7 @@ export function useFilters() {
 
 export type Filters = ReturnType<typeof useFilters>;
 
-function PriceInput({ label, value, onCommit }: { label: string; value: string; onCommit: (value: string) => void }) {
+export function PriceInput({ label, value, onCommit }: { label: string; value: string; onCommit: (value: string) => void }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
 

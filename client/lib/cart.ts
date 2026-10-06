@@ -4,6 +4,9 @@ import { useSyncExternalStore } from "react";
 import type { Product } from "./api";
 
 export type CartItem = Pick<Product, "id" | "name" | "brand" | "price" | "image" | "stock" | "storage" | "ram"> & {
+  // необязательные: в корзинах, сохранённых до появления аксессуаров, этих полей нет
+  kind?: Product["kind"];
+  category?: string;
   quantity: number;
 };
 
@@ -70,8 +73,8 @@ const add = (p: Product) => {
     );
   }
   if (p.stock < 1) return;
-  const { id, name, brand, price, image, stock, storage, ram } = p;
-  write([...items, { id, name, brand, price, image, stock, storage, ram, quantity: 1 }]);
+  const { id, name, brand, price, image, stock, storage, ram, kind, category } = p;
+  write([...items, { id, name, brand, price, image, stock, storage, ram, kind, category, quantity: 1 }]);
 };
 
 const setQuantity = (id: number, quantity: number) =>

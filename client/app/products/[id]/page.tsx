@@ -12,7 +12,7 @@ import { AlertIcon, ChevronRightIcon } from "@/components/ui/Icons";
 import { Loading, Skeleton } from "@/components/ui/Skeleton";
 import { type Product, ApiError, api, formatPrice, formatStorage, phoneTitle } from "@/lib/api";
 
-function Breadcrumbs({ current }: { current?: string }) {
+function Breadcrumbs({ current, accessory = false }: { current?: string; accessory?: boolean }) {
   const link = "rounded transition-colors hover:text-ink";
   return (
     <nav aria-label="Хлебные крошки" className="mb-4 sm:mb-6">
@@ -24,8 +24,8 @@ function Breadcrumbs({ current }: { current?: string }) {
         </li>
         <li className="flex items-center gap-1">
           <ChevronRightIcon className="size-3.5" />
-          <Link href="/#catalog" className={link}>
-            Каталог
+          <Link href={accessory ? "/accessories" : "/#catalog"} className={link}>
+            {accessory ? "Аксессуары" : "Каталог"}
           </Link>
         </li>
         <li className="flex min-w-0 items-center gap-1">
@@ -78,6 +78,7 @@ export default function ProductPage() {
       .then((p) => {
         if (stale) return;
         setProduct(p);
+        if (p.kind === "accessory") return;
         // та же модель в других цветах — если такие добавлены в каталог
         api<Product[]>(`/products?q=${encodeURIComponent(p.name)}`)
           .then((all) => {
@@ -136,31 +137,46 @@ export default function ProductPage() {
   }
 
   const title = phoneTitle(product);
-  const colors = variants.length > 1 ? variants : product.color ? [product] : [];
-  const highlights: [string, string][] = [
-    ["Память", formatStorage(product.storage)],
-    ["RAM", `${product.ram} GB`],
-    ["Батарея", product.battery],
-  ];
-  const specs: [string, string][] = [
-    ["Бренд", product.brand],
-    ["Процессор", product.processor],
-    ["RAM", `${product.ram} GB`],
-    ["Память", formatStorage(product.storage)],
-    ["Камера", product.camera],
-    ["Аккумулятор", product.battery],
-    ["Цвет", product.color],
-  ];
+  // у аксессуара нет памяти, RAM и прочих характеристик телефона
+  const accessory = product.kind === "accessory";
+  const colors = accessory ? [] : variants.length > 1 ? variants : product.color ? [product] : [];
+  const highlights: [string, string][] = accessory
+    ? []
+    : [
+        ["Память", formatStorage(product.storage)],
+        ["RAM", `${product.ram} GB`],
+        ["Батарея", product.battery],
+      ];
+  const specs: [string, string][] = accessory
+    ? [
+        ["Категория", product.category],
+        ["Бренд", product.brand],
+        ["Цвет", product.color],
+      ]
+    : [
+        ["Бренд", product.brand],
+        ["Процессор", product.processor],
+        ["RAM", `${product.ram} GB`],
+        ["Память", formatStorage(product.storage)],
+        ["Камера", product.camera],
+        ["Аккумулятор", product.battery],
+        ["Цвет", product.color],
+      ];
 
   return (
     <>
-      <Breadcrumbs current={title} />
+      <Breadcrumbs current={title} accessory={accessory} />
 
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 md:gap-10">
-        <PhoneImage src={product.image} alt={title} className="aspect-square w-full rounded-xl border border-line md:sticky md:top-24" />
+        <PhoneImage
+          src={product.image}
+          alt={title}
+          placeholder={accessory ? "box" : "phone"}
+          className="aspect-square w-full rounded-xl border border-line md:sticky md:top-24"
+        />
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted">{product.brand}</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted">{accessory ? product.category : product.brand}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{product.name}</h1>
 
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -169,7 +185,7 @@ export default function ProductPage() {
           </div>
           {product.stock > 0 && <p className="mt-1.5 text-[13px] text-muted">На складе: {product.stock} шт.</p>}
 
-          <dl className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
+          <dl className={`mt-5 grid grid-cols-3 gap-2 sm:gap-3 ${highlights.length ? "" : "hidden"}`}>
             {highlights
               .filter(([, value]) => value)
               .map(([label, value]) => (

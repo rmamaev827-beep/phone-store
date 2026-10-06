@@ -8,7 +8,7 @@ import { CartIcon, TrashIcon } from "@/components/ui/Icons";
 import { Loading, Skeleton } from "@/components/ui/Skeleton";
 import { Stepper } from "@/components/ui/Stepper";
 import { toast } from "@/components/ui/Toast";
-import { formatPrice, formatStorage, phoneTitle } from "@/lib/api";
+import { formatPrice, phoneTitle, productSpecs } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 
 export default function CartPage() {
@@ -72,7 +72,7 @@ export default function CartPage() {
                         {title}
                       </Link>
                       <p className="mt-0.5 text-[13px] text-muted">
-                        {formatStorage(item.storage)} · {item.ram} GB RAM
+                        {productSpecs(item)}
                       </p>
                       <p className="mt-0.5 text-[13px] text-muted">{formatPrice(item.price)} за шт.</p>
                     </div>

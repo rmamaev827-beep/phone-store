@@ -15,10 +15,12 @@ function SearchBox({
   value,
   onChange,
   onSubmit,
+  placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  placeholder: string;
 }) {
   return (
     <form
@@ -36,8 +38,8 @@ function SearchBox({
         enterKeyHint="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Найти смартфон"
-        aria-label="Поиск телефонов"
+        placeholder={placeholder}
+        aria-label="Поиск по каталогу"
         className="control bg-zinc-50 pl-9.5 pr-9 focus:bg-surface"
       />
       {value && (
@@ -79,7 +81,9 @@ export default function Header() {
   const hasContacts = (useContacts()?.length ?? 0) > 0;
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const onCatalog = pathname === "/";
+  // на странице аксессуаров ищем аксессуары, в остальных местах — телефоны
+  const base = pathname === "/accessories" ? "/accessories" : "/";
+  const onCatalog = pathname === base;
   const urlQuery = onCatalog ? searchParams.get("q") || "" : "";
   const [query, setQuery] = useState(urlQuery);
 
@@ -99,7 +103,7 @@ export default function Header() {
     if (q) params.set("q", q);
     else params.delete("q");
     const qs = params.toString();
-    router[mode](qs ? `/?${qs}` : "/", { scroll: false });
+    router[mode](qs ? `${base}?${qs}` : base, { scroll: false });
   }
 
   // на каталоге ищем по мере ввода, с паузой
@@ -118,7 +122,14 @@ export default function Header() {
     return () => document.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
-  const searchBox = <SearchBox value={query} onChange={setQuery} onSubmit={() => search(query, "push")} />;
+  const searchBox = (
+    <SearchBox
+      value={query}
+      onChange={setQuery}
+      onSubmit={() => search(query, "push")}
+      placeholder={base === "/accessories" ? "Найти аксессуар" : "Найти смартфон"}
+    />
+  );
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface/80 backdrop-blur-md">
@@ -144,6 +155,9 @@ export default function Header() {
         <nav aria-label="Основная навигация" className="hidden md:flex">
           <Link href="/#catalog" className={NAV_LINK}>
             Каталог
+          </Link>
+          <Link href="/accessories" className={NAV_LINK}>
+            Аксессуары
           </Link>
           {hasContacts && (
             <a href="#contacts" className={NAV_LINK}>
@@ -192,6 +206,9 @@ export default function Header() {
           <div className="container-page flex flex-col py-2">
             <Link href="/#catalog" onClick={() => setMenuOpen(false)} className={`${NAV_LINK} py-3 text-ink`}>
               Каталог
+            </Link>
+            <Link href="/accessories" onClick={() => setMenuOpen(false)} className={`${NAV_LINK} py-3 text-ink`}>
+              Аксессуары
             </Link>
             <Link href="/cart" onClick={() => setMenuOpen(false)} className={`${NAV_LINK} flex justify-between py-3 text-ink`}>
               Корзина
